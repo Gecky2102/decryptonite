@@ -116,7 +116,8 @@ judge      : ollama:llama3.2
 - **`scorer.py`** — `heuristic_score` blends printable ratio, vowel balance,
   common-bigram pronounceability, secret-like words and entropy into a 0–100
   value. `OllamaJudge` prompts a local model for a JSON `{score, reason}` and
-  the final rank is a blend (`0.35 * heuristic + 0.65 * llm`).
+  the final rank is a blend (`0.4 * heuristic + 0.6 * llm`) with a heuristic
+  floor, so a small/weak model can promote but not bury a readable candidate.
 - **`cli.py`** — argument parsing, stdin support, pretty and `--json` output.
 - **`progress.py`** — dependency-free progress bar (percentage + ETA) shown on
   stderr during the LLM pass; auto-disabled when output is piped or `--json`.
