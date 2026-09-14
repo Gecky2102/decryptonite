@@ -11,3 +11,4 @@ venv/
 .ruff_cache/
 .DS_Store
 run_demo.command
+run.command
