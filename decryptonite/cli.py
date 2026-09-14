@@ -46,8 +46,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="heuristic ranking only; do not call Ollama",
     )
     p.add_argument(
-        "--model", default="llama3.2",
-        help="Ollama model used as judge (default: llama3.2)",
+        "--model", default="llama3.2:1b",
+        help="Ollama model used as judge (default: llama3.2:1b, chosen for speed)",
     )
     p.add_argument(
         "--host", default="http://localhost:11434",
@@ -93,7 +93,12 @@ def main(argv: "list[str] | None" = None) -> int:
             )
             judge = None
 
-    scored = rank(candidates, judge=judge, llm_top_k=args.llm_top)
+    scored = rank(
+        candidates,
+        judge=judge,
+        llm_top_k=args.llm_top,
+        progress=False if args.json else None,
+    )
     top = scored[: args.top]
 
     if args.json:

@@ -47,7 +47,7 @@ The LLM step is **optional**. For it you need [Ollama](https://ollama.com)
 running with any instruct model:
 
 ```bash
-ollama pull llama3.2
+ollama pull llama3.2:1b   # small & fast; any instruct model works
 ollama serve   # usually already running
 ```
 
@@ -96,7 +96,7 @@ judge      : ollama:llama3.2
 | `-n, --top` | `15` | How many candidates to display |
 | `--no-bruteforce` | off | Skip high-fan-out families (Caesar, single-byte XOR) |
 | `--no-llm` | off | Heuristic ranking only |
-| `--model` | `llama3.2` | Ollama model used as judge |
+| `--model` | `llama3.2:1b` | Ollama model used as judge (small = fast) |
 | `--host` | `http://localhost:11434` | Ollama endpoint |
 | `--llm-top` | `20` | How many top candidates to send to the LLM |
 | `--json` | off | Machine-readable output |
@@ -118,6 +118,8 @@ judge      : ollama:llama3.2
   value. `OllamaJudge` prompts a local model for a JSON `{score, reason}` and
   the final rank is a blend (`0.35 * heuristic + 0.65 * llm`).
 - **`cli.py`** — argument parsing, stdin support, pretty and `--json` output.
+- **`progress.py`** — dependency-free progress bar (percentage + ETA) shown on
+  stderr during the LLM pass; auto-disabled when output is piped or `--json`.
 
 ## Supported decoders
 

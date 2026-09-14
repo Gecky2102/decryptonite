@@ -21,6 +21,7 @@ import urllib.request
 from dataclasses import dataclass
 
 from .decoders import Candidate
+from .progress import ProgressBar
 
 _WORDISH = re.compile(r"[A-Za-z]{3,}")
 _VOWELS = set("aeiouAEIOU")
@@ -118,12 +119,22 @@ class ScoredCandidate:
     heuristic: float
     llm: "float | None" = None
     reason: str = ""
+    judged: bool = False
 
     @property
     def final(self) -> float:
-        if self.llm is None:
+        # When no judge ran at all, rank purely on the heuristic.
+        if self.llm is None and not self.judged:
             return self.heuristic
-        return 0.35 * self.heuristic + 0.65 * self.llm
+        # A judge ran but did not score this candidate (outside top-k): it is
+        # lower confidence, so weight it as heuristic-only on the blended scale
+        # to keep it from outranking judged candidates.
+        if self.llm is None:
+            return 0.4 * self.heuristic
+        # Blend, but let a strong heuristic act as a floor so a weak/small LLM
+        # cannot bury an obviously readable candidate under byte soup.
+        blended = 0.4 * self.heuristic + 0.6 * self.llm
+        return max(blended, 0.4 * self.heuristic)
 
 
 class OllamaJudge:
@@ -149,14 +160,20 @@ class OllamaJudge:
 
     def _prompt(self, text: str) -> str:
         return (
-            "You are a security analyst triaging strings recovered from a "
-            "decryption sweep. Rate, from 0 to 100, how likely the following "
-            "string is a meaningful human secret: a real password, passphrase, "
-            "PIN, key, or readable words a person chose. Byte soup, random "
-            "high-entropy garbage, or gibberish should score low. Reply with a "
-            "single minified JSON object and nothing else, of the form "
-            '{"score": <int 0-100>, "reason": "<max 8 words>"}.\n\n'
-            f"String: {text!r}"
+            "Task: judge whether a string looks like something a HUMAN would "
+            "type as a password or write as readable text, versus random "
+            "computer garbage.\n"
+            "Give a score from 0 to 100. HIGH score = readable words, names, "
+            "or a plausible password (letters/digits/symbols a person picks). "
+            "LOW score = random bytes, gibberish, no pronounceable words.\n"
+            "Examples:\n"
+            '  "MyPassw0rd!" -> {"score": 95, "reason": "readable password"}\n'
+            '  "correct horse" -> {"score": 90, "reason": "real words"}\n'
+            '  "bnZgonxLRLtO" -> {"score": 8, "reason": "random gibberish"}\n'
+            '  "\\x0b\\x9f\\xaa" -> {"score": 2, "reason": "binary garbage"}\n'
+            "Reply with ONLY one minified JSON object: "
+            '{"score": <int>, "reason": "<max 6 words>"}.\n\n'
+            f"String to judge: {text!r}\nJSON:"
         )
 
     def score(self, text: str) -> "tuple[float, str] | None":
@@ -194,21 +211,28 @@ def rank(
     candidates: "list[Candidate]",
     judge: "OllamaJudge | None" = None,
     llm_top_k: int = 20,
+    progress: "bool | None" = None,
 ) -> "list[ScoredCandidate]":
     """Score and sort ``candidates`` best-first.
 
     All candidates get a heuristic score. When ``judge`` is provided and
     reachable, the top ``llm_top_k`` by heuristic are additionally scored by the
-    LLM and re-ranked on the blended score.
+    LLM and re-ranked on the blended score. During the LLM pass a progress bar
+    with percentage and ETA is shown on stderr (auto-enabled on a TTY; force
+    with ``progress=True``/disable with ``progress=False``).
     """
     scored = [ScoredCandidate(c, heuristic_score(c.text)) for c in candidates]
     scored.sort(key=lambda s: s.heuristic, reverse=True)
 
     if judge is not None:
-        for sc in scored[:llm_top_k]:
-            result = judge.score(sc.candidate.text)
-            if result is not None:
-                sc.llm, sc.reason = result
+        batch = scored[:llm_top_k]
+        with ProgressBar(len(batch), label="judging", enabled=progress) as bar:
+            for sc in batch:
+                sc.judged = True
+                result = judge.score(sc.candidate.text)
+                if result is not None:
+                    sc.llm, sc.reason = result
+                bar.advance()
 
     scored.sort(key=lambda s: s.final, reverse=True)
     return scored
