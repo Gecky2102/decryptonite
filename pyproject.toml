@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "decryptonite"
+version = "0.1.0"
+description = "Throw a string at the wall: brute-force every plausible decoding, then let a local LLM flag the ones that look like real secrets."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [{ name = "Gecky2102", email = "giacomomasiero.08@gmail.com" }]
+keywords = ["cryptography", "ctf", "decoding", "ollama", "cli", "security"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security :: Cryptography",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Gecky2102/decryptonite"
+Repository = "https://github.com/Gecky2102/decryptonite"
+
+[project.scripts]
+decryptonite = "decryptonite.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["decryptonite"]
