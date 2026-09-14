@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "decryptonite"
-version = "0.1.0"
+version = "0.2.0"
 description = "Throw a string at the wall: brute-force every plausible decoding, then let a local LLM flag the ones that look like real secrets."
 readme = "README.md"
 license = { text = "MIT" }

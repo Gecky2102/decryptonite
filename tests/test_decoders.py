@@ -53,3 +53,35 @@ def test_rank_orders_by_score_without_llm():
     ranked = rank(cands, judge=None)
     scores = [s.final for s in ranked]
     assert scores == sorted(scores, reverse=True)
+
+
+def test_base58_roundtrip():
+    # base58 of "hello" is "Cn8eVZg"
+    cands = _texts(expand("Cn8eVZg", max_depth=1, include_bruteforce=False))
+    assert "hello" in cands
+
+
+def test_a1z26():
+    cands = _texts(expand("8 5 12 12 15", max_depth=1, include_bruteforce=False))
+    assert "hello" in cands
+
+
+def test_baconian():
+    # "AABAAAABABAABBAABBABBBA" padded: HELLO in baconian
+    enc = "AABBBAABAAABABBABABBABBBA"[:25]  # ensure multiple of 5 handled below
+    # build cleanly: H=AABBB E=AABAA L=ABABB L=ABABB O=ABBBA
+    enc = "AABBBAABAAABABBABABBABBBA"
+    cands = _texts(expand(enc, max_depth=1, include_bruteforce=False))
+    assert "HELLO" in cands
+
+
+def test_vigenere_bruteforce():
+    # "rijvs" with key "key" decrypts to "hello"
+    cands = _texts(expand("rijvs", max_depth=1, include_bruteforce=True))
+    assert "hello" in cands
+
+
+def test_technology_count_is_deep():
+    from decryptonite.decoders import technology_count
+    simple, brute = technology_count()
+    assert simple >= 30 and brute >= 5

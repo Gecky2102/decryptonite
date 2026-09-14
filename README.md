@@ -75,17 +75,25 @@ echo "01001000 01101001" | decryptonite --json
 Example output:
 
 ```
-input      : 'TXlQYXNzdzByZCE='
-candidates : 106 decoded  |  showing top 4
-judge      : ollama:llama3.2
-------------------------------------------------------------------------
- 1. [ 92.0] ##################--  via base64
-    'MyPassw0rd!'
-    LLM llm=95 heu=84  — looks like a real password
- 2. [ 51.3] ##########----------  via xor-0d
-    'YUa\TUCwiwOtWNH0'
-    LLM llm=10 heu=51  — random high-entropy bytes
- ...
+  DECRYPTONITE  · decode & rank
+  ────────────────────────────────────────────────────────────
+  input      TXlQYXNzdzByZCE=
+  searched   32 decoders + 6 brute-force families → 434 candidates
+  judge      ollama:llama3.2:1b  (20 scored)
+
+  BEST MATCH
+  ╭──────────────────────────────────────────────────────────
+  │ MyPassword!
+  │ via base64 > leet
+  │ ██████████████████████░░  91/100  [strong]   llm=90 heu=92 — real words
+  ╰──────────────────────────────────────────────────────────
+
+  OTHER CANDIDATES
+   #  score  method                 plaintext
+   2     91  base64                 MyPassw0rd!
+      ↳ readable password
+   3     47  affine-a9b1            COeTROKuguArUDJ=
+   ...
 ```
 
 ### Options
@@ -99,6 +107,7 @@ judge      : ollama:llama3.2
 | `--model` | `llama3.2:1b` | Ollama model used as judge (small = fast) |
 | `--host` | `http://localhost:11434` | Ollama endpoint |
 | `--llm-top` | `20` | How many top candidates to send to the LLM |
+| `--no-color` | off | Disable ANSI colors |
 | `--json` | off | Machine-readable output |
 
 ## How it works
@@ -124,11 +133,30 @@ judge      : ollama:llama3.2
 
 ## Supported decoders
 
-Base64 · Base64URL · Base32 · Base85 · Ascii85 · Hex · URL/percent · HTML
-entities · ROT13 · ROT47 · Atbash · reverse · Morse · binary · decimal ASCII ·
-all 25 Caesar shifts · every single-byte XOR key.
+**38 techniques** in two groups. Simple decoders are chained automatically up
+to `--depth`; brute-force families run once, on the raw input.
 
-Chains of these are explored automatically up to `--depth`.
+**Encodings (32 simple decoders)**
+
+- *Base-N*: Base64, Base64URL, Base32, Base58, Base62, Base45, Base85, Ascii85,
+  Z85, Hex/Base16, uudecode
+- *Web/text*: URL/percent, HTML entities, quoted-printable, punycode,
+  `\xNN` hex escapes, `\uNNNN` unicode escapes
+- *Classical*: ROT13, ROT47, Atbash, reverse, leetspeak, Baconian
+- *Numeric*: Morse, binary, octal, decimal ASCII, A1Z26
+- *Compression*: gzip, zlib, bz2, lzma (great for base64-wrapped blobs)
+
+**Brute-force families (6)**
+
+- Caesar (all 25 shifts)
+- Affine (every valid a/b pair)
+- XOR single-byte (all 256 keys)
+- XOR keyword (common-key wordlist)
+- Vigenère (common-key wordlist)
+- Rail fence (2–11 rails)
+
+A typical input expands into **hundreds** of candidates; the heuristic + LLM
+ranking is what makes the pile readable.
 
 ## Contributing
 
